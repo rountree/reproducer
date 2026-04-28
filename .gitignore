@@ -1,0 +1,9 @@
+# Build artifacts
+*.so
+*.o
+
+# Test results
+event-watch-test-logs-*/
+
+# Generated docker-compose
+docker/docker-compose.yml
