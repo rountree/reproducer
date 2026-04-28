@@ -23,10 +23,8 @@ echo "Starting flux with --test-size=${workers}"
 echo "Flux version: $(flux version)"
 
 # Broker configuration options
-BROKER_OPTS="-Srundir=/run/flux"
-BROKER_OPTS="$BROKER_OPTS -Sstatedir=/var/lib/flux"
-BROKER_OPTS="$BROKER_OPTS -Slocal-uri=local:///run/flux/local"
-BROKER_OPTS="$BROKER_OPTS -Slog-stderr-level=7"
+# Note: Don't set local-uri in test mode - each rank needs its own socket
+BROKER_OPTS="-Slog-stderr-level=7"
 BROKER_OPTS="$BROKER_OPTS -Slog-stderr-mode=local"
 
 echo "Broker options: $BROKER_OPTS"
