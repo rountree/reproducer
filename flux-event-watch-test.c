@@ -86,7 +86,7 @@ static int shell_init_callback(flux_plugin_t *p,
     if (gethostname(hostname, sizeof(hostname)) < 0) {
         snprintf(hostname, sizeof(hostname), "unknown");
     }
-    snprintf(logpath, sizeof(logpath), "event_watch_output.%s.%d", hostname, getpid());
+    snprintf(logpath, sizeof(logpath), "/home/fluxuser/event_watch_output.%s.%d", hostname, getpid());
 
     logfile = fopen(logpath, "w");
     if (!logfile) {
