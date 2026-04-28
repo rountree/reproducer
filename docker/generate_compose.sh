@@ -34,7 +34,7 @@ if [ "$NODE_COUNT" -gt 1 ]; then
     for i in $(seq 2 $NODE_COUNT); do
         echo "" >> "$OUTPUT"
         sed -n '/# NODE_TEMPLATE_START/,/# NODE_TEMPLATE_END/p' "$TEMPLATE" | \
-            sed "s/node-N/node-${i}/g" | \
+            sed -e "s/node-N/node-${i}/g" -e "s/flux-var-N/flux-var-${i}/g" -e "s/-N:/-${i}:/g" | \
             grep -v "NODE_TEMPLATE" >> "$OUTPUT"
     done
 fi
