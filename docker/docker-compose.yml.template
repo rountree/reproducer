@@ -16,7 +16,7 @@ services:
     cap_add:
       - SYS_PTRACE  # For GDB
     healthcheck:
-      test: ["CMD", "flux", "getattr", "size"]
+      test: ["CMD", "pgrep", "-f", "flux-broker"]
       interval: 5s
       timeout: 3s
       retries: 10
