@@ -1,12 +1,13 @@
 FROM fluxrm/flux-sched:noble-v0.48.0-amd64
 
+# Run as root for package installation
+USER root
+
 # Install build dependencies
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
         pkg-config \
-        flux-core \
-        flux-security \
         libflux-dev \
         gdb \
         sudo && \
