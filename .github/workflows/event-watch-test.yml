@@ -46,6 +46,44 @@ jobs:
           cd docker
           docker compose up -d --wait --wait-timeout 300
 
+      - name: Verify plugin is installed and loadable
+        run: |
+          echo "=== Checking plugin installation ==="
+
+          # Check if plugin file exists
+          echo "Checking if plugin exists..."
+          docker exec node-1 bash -c "ls -lh /usr/lib/flux/shell/flux-event-watch-test.so"
+
+          # Check if it's a valid ELF shared library
+          echo ""
+          echo "Checking if it's a valid shared library..."
+          docker exec node-1 bash -c "file /usr/lib/flux/shell/flux-event-watch-test.so"
+
+          # Check for required symbols
+          echo ""
+          echo "Checking for flux_plugin_init symbol..."
+          docker exec node-1 bash -c "nm -D /usr/lib/flux/shell/flux-event-watch-test.so | grep flux_plugin_init || echo 'WARNING: flux_plugin_init not found'"
+
+          # Check build timestamp in container
+          echo ""
+          echo "Checking plugin build timestamp..."
+          docker exec node-1 bash -c "stat /usr/lib/flux/shell/flux-event-watch-test.so"
+
+          # Check source file in container
+          echo ""
+          echo "Checking source file modification time..."
+          docker exec node-1 bash -c "stat /home/fluxuser/flux-event-watch-test.c"
+
+          # Verify the source has the absolute path fix
+          echo ""
+          echo "Verifying source contains absolute path fix..."
+          docker exec node-1 bash -c "grep '/home/fluxuser/event_watch_output' /home/fluxuser/flux-event-watch-test.c || echo 'ERROR: Absolute path not found in source!'"
+
+          # Try to see what flux shell plugins are available
+          echo ""
+          echo "Listing all flux shell plugins..."
+          docker exec node-1 bash -c "ls -lh /usr/lib/flux/shell/"
+
       - name: Capture node-1 logs on startup failure
         if: failure()
         run: |
