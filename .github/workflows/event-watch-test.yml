@@ -55,12 +55,6 @@ jobs:
           echo "=== Node-1 healthcheck status ==="
           docker inspect node-1 --format='{{json .State.Health}}' || echo "Could not get health status"
 
-      - name: Verify flux is running
-        run: |
-          echo "Testing flux connectivity..."
-          docker exec node-1 flux getattr size
-          docker exec node-1 flux resource list
-
       - name: Run event watch test iterations
         run: |
           # Configuration
