@@ -190,27 +190,22 @@ jobs:
             actual_behavior="All ranks received callbacks (bug not reproduced)"
           fi
 
-          cat > /tmp/artifacts/analysis/summary.txt <<'SUMMARY_EOF'
-Flux Event Watch Test Summary
-==============================
-SUMMARY_EOF
-
-          cat >> /tmp/artifacts/analysis/summary.txt <<EOF
-Date: $(date)
-Node count: ${NODE_COUNT}
-Iterations run: $i
-
-Results:
-- Successful iterations: ${success_count}
-- Timeouts: ${timeout_count}
-- Bug detected: ${found_bug}
-
-Expected behavior: All ${NODE_COUNT} ranks should receive callbacks and log SUCCESS
-Actual behavior: ${actual_behavior}
-
-See iterations/ directory for per-iteration logs
-See iterations/iter_N/diagnostics/ for flux diagnostics when bug was detected
-EOF
+          echo "Flux Event Watch Test Summary" > /tmp/artifacts/analysis/summary.txt
+          echo "==============================" >> /tmp/artifacts/analysis/summary.txt
+          echo "Date: $(date)" >> /tmp/artifacts/analysis/summary.txt
+          echo "Node count: ${NODE_COUNT}" >> /tmp/artifacts/analysis/summary.txt
+          echo "Iterations run: $i" >> /tmp/artifacts/analysis/summary.txt
+          echo "" >> /tmp/artifacts/analysis/summary.txt
+          echo "Results:" >> /tmp/artifacts/analysis/summary.txt
+          echo "- Successful iterations: ${success_count}" >> /tmp/artifacts/analysis/summary.txt
+          echo "- Timeouts: ${timeout_count}" >> /tmp/artifacts/analysis/summary.txt
+          echo "- Bug detected: ${found_bug}" >> /tmp/artifacts/analysis/summary.txt
+          echo "" >> /tmp/artifacts/analysis/summary.txt
+          echo "Expected behavior: All ${NODE_COUNT} ranks should receive callbacks and log SUCCESS" >> /tmp/artifacts/analysis/summary.txt
+          echo "Actual behavior: ${actual_behavior}" >> /tmp/artifacts/analysis/summary.txt
+          echo "" >> /tmp/artifacts/analysis/summary.txt
+          echo "See iterations/ directory for per-iteration logs" >> /tmp/artifacts/analysis/summary.txt
+          echo "See iterations/iter_N/diagnostics/ for flux diagnostics when bug was detected" >> /tmp/artifacts/analysis/summary.txt
 
           cat /tmp/artifacts/analysis/summary.txt
 
