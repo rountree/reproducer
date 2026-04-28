@@ -6,6 +6,8 @@
  * fire on ~9-22% of nodes, even though events are present in the KVS.
  */
 
+#define FLUX_SHELL_PLUGIN_NAME "event-watch-test"
+
 #include <stdio.h>
 #include <flux/core.h>
 #include <flux/shell.h>
@@ -59,9 +61,9 @@ static void event_watch_callback(flux_future_t *f, void *arg)
 
 /* Called during shell.init phase */
 static int shell_init_callback(flux_plugin_t *p,
-                               const char *topic,
-                               flux_plugin_arg_t *args,
-                               void *data)
+                               const char *topic __attribute__((unused)),
+                               flux_plugin_arg_t *args __attribute__((unused)),
+                               void *data __attribute__((unused)))
 {
     flux_shell_t *shell = flux_plugin_get_shell(p);
     flux_t *h = NULL;
