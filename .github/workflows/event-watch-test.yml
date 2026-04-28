@@ -54,16 +54,15 @@ jobs:
           MAX_ITERATIONS=100
           NODE_COUNT=${{ env.NODE_COUNT }}
 
-          # Generate node list dynamically
-          NODE_LIST=$(seq -f "node-%.0f" 1 $NODE_COUNT | tr '\n' ' ')
-          echo "Node list: ${NODE_LIST}"
+          # Note: With --test-size, flux simulates N ranks in a single container
+          echo "Testing with ${NODE_COUNT} simulated flux ranks in node-1 container"
 
           # Create artifact staging directory
           mkdir -p /tmp/artifacts/iterations
           mkdir -p /tmp/artifacts/analysis
 
           echo "Starting test iterations at $(date)"
-          echo "Configuration: timeout=${ITERATION_TIMEOUT_SECONDS}s, max_iterations=${MAX_ITERATIONS}, nodes=${NODE_COUNT}"
+          echo "Configuration: timeout=${ITERATION_TIMEOUT_SECONDS}s, max_iterations=${MAX_ITERATIONS}, ranks=${NODE_COUNT}"
 
           success_count=0
           timeout_count=0
@@ -112,36 +111,33 @@ jobs:
                   fi
                 done
 
-                # Collect flux diagnostics from all nodes
-                for node in $NODE_LIST; do
-                  echo "    Collecting diagnostics from ${node}..."
-                  mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}
+                # Collect flux diagnostics (all from node-1 since that's the only container)
+                echo "    Collecting diagnostics from node-1..."
 
-                  # Get job list
-                  docker exec ${node} bash -c \
-                    "flux jobs -a -o '{id} {name} {status} {t_submit}' 2>&1 || echo 'flux jobs failed'" \
-                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/jobs_list.txt 2>&1 || true
+                # Get job list
+                docker exec node-1 bash -c \
+                  "flux jobs -a -o '{id} {name} {status} {t_submit}' 2>&1 || echo 'flux jobs failed'" \
+                  > /tmp/artifacts/iterations/iter_${i}/diagnostics/jobs_list.txt 2>&1 || true
 
-                  # Get most recent job eventlogs
-                  docker exec ${node} bash -c \
-                    "JOBID=\$(flux job last 2>/dev/null); \
-                     if [ -n \"\$JOBID\" ]; then \
-                       echo \"Job ID: \$JOBID\"; \
-                       echo \"=== Main eventlog ===\";\
-                       flux job eventlog \$JOBID 2>&1 || echo 'flux job eventlog failed'; \
-                       echo \"\"; \
-                       echo \"=== Guest exec eventlog ===\";\
-                       flux job eventlog -p guest.exec.eventlog \$JOBID 2>&1 || echo 'guest.exec.eventlog failed'; \
-                     else \
-                       echo 'No recent job found'; \
-                     fi" \
-                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/eventlogs.txt 2>&1 || true
+                # Get most recent job eventlogs
+                docker exec node-1 bash -c \
+                  "JOBID=\$(flux job last 2>/dev/null); \
+                   if [ -n \"\$JOBID\" ]; then \
+                     echo \"Job ID: \$JOBID\"; \
+                     echo \"=== Main eventlog ===\";\
+                     flux job eventlog \$JOBID 2>&1 || echo 'flux job eventlog failed'; \
+                     echo \"\"; \
+                     echo \"=== Guest exec eventlog ===\";\
+                     flux job eventlog -p guest.exec.eventlog \$JOBID 2>&1 || echo 'guest.exec.eventlog failed'; \
+                   else \
+                     echo 'No recent job found'; \
+                   fi" \
+                  > /tmp/artifacts/iterations/iter_${i}/diagnostics/eventlogs.txt 2>&1 || true
 
-                  # Get broker logs
-                  docker exec ${node} bash -c \
-                    "flux dmesg 2>&1 || echo 'flux dmesg failed'" \
-                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/broker_dmesg.txt 2>&1 || true
-                done
+                # Get broker logs
+                docker exec node-1 bash -c \
+                  "flux dmesg 2>&1 || echo 'flux dmesg failed'" \
+                  > /tmp/artifacts/iterations/iter_${i}/diagnostics/broker_dmesg.txt 2>&1 || true
 
                 # Stop after first bug detection
                 echo "Stopping after bug detection"
@@ -158,18 +154,15 @@ jobs:
                 # Collect diagnostics similar to bug case
                 mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics
 
-                for node in $NODE_LIST; do
-                  echo "  Collecting timeout diagnostics from ${node}..."
-                  mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}
+                echo "  Collecting timeout diagnostics from node-1..."
 
-                  docker exec ${node} bash -c \
-                    "flux jobs -a 2>&1 || echo 'flux jobs failed'" \
-                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/jobs_list.txt 2>&1 || true
+                docker exec node-1 bash -c \
+                  "flux jobs -a 2>&1 || echo 'flux jobs failed'" \
+                  > /tmp/artifacts/iterations/iter_${i}/diagnostics/jobs_list.txt 2>&1 || true
 
-                  docker exec ${node} bash -c \
-                    "flux dmesg 2>&1 || echo 'flux dmesg failed'" \
-                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/broker_dmesg.txt 2>&1 || true
-                done
+                docker exec node-1 bash -c \
+                  "flux dmesg 2>&1 || echo 'flux dmesg failed'" \
+                  > /tmp/artifacts/iterations/iter_${i}/diagnostics/broker_dmesg.txt 2>&1 || true
 
                 echo "Stopping after timeout"
                 break

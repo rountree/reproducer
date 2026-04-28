@@ -8,21 +8,10 @@ services:
     networks:
       - flux-net
     environment:
-      - FLUX_URI=local:///run/flux/local
+      - workers=NODECOUNT
       - FLUX_SHELL_VERBOSE=2
     volumes:
-      - /tmp/flux-run:/run/flux
       - flux-var-1:/var/lib/flux
-      - munge-1:/etc/munge
-    command: >
-      bash -c "
-        sudo mkdir -p /var/run/munge &&
-        sudo chown munge:munge /var/run/munge &&
-        sudo -u munge munged &&
-        sudo mkdir -p /run/flux/local &&
-        sudo chown fluxuser:fluxuser /run/flux/local &&
-        flux start --test-size=NODECOUNT
-      "
     healthcheck:
       test: ["CMD", "flux", "getattr", "size"]
       interval: 5s
@@ -30,39 +19,8 @@ services:
       retries: 10
       start_period: 30s
 
-# Additional nodes will be appended here by generate_compose.sh
-# NODE_TEMPLATE_START
-  node-N:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    container_name: node-N
-    hostname: node-N
-    networks:
-      - flux-net
-    environment:
-      - FLUX_URI=ssh://fluxuser@node-1/run/flux/local
-      - FLUX_SHELL_VERBOSE=2
-    volumes:
-      - flux-var-N:/var/lib/flux
-      - munge-1:/etc/munge:ro
-    command: >
-      bash -c "
-        sudo mkdir -p /var/run/munge &&
-        sudo chown munge:munge /var/run/munge &&
-        sudo -u munge munged &&
-        sleep infinity
-      "
-    depends_on:
-      node-1:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "pgrep", "munged"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-# NODE_TEMPLATE_END
+# Note: With --test-size, flux simulates N nodes in a single container
+# No additional containers needed
 
 networks:
   flux-net:
@@ -70,4 +28,3 @@ networks:
 
 volumes:
   flux-var-1:
-# Volume entries for additional nodes will be appended here

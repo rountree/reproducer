@@ -20,7 +20,8 @@ RUN echo "fluxuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 COPY flux-event-watch-test.c /home/fluxuser/
 COPY Makefile /home/fluxuser/
 COPY run_test.sh /home/fluxuser/
-RUN chmod +x /home/fluxuser/run_test.sh
+COPY docker/entrypoint.sh /home/fluxuser/
+RUN chmod +x /home/fluxuser/run_test.sh /home/fluxuser/entrypoint.sh
 
 # Build and install the plugin
 WORKDIR /home/fluxuser
@@ -32,4 +33,4 @@ RUN make && \
 USER fluxuser
 WORKDIR /home/fluxuser
 
-CMD ["/bin/bash"]
+ENTRYPOINT ["/home/fluxuser/entrypoint.sh"]
