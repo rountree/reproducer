@@ -94,20 +94,33 @@ jobs:
               echo "Iteration $i: COMPLETED"
               success_count=$((success_count + 1))
 
-              # Collect logs from all containers
-              echo "  Collecting container logs from all nodes..."
+              # Collect log files from all containers
+              echo "  Collecting event watch logs from all nodes..."
               for node in $NODE_LIST; do
-                docker logs ${node} > /tmp/artifacts/iterations/iter_${i}/${node}.log 2>&1 || true
+                echo "    Collecting logs from ${node}..."
+                mkdir -p /tmp/artifacts/iterations/iter_${i}/${node}
+
+                # List what files exist
+                docker exec ${node} bash -c \
+                  "cd /home/fluxuser && (ls -la event_watch_output.* 2>&1 | grep -vE 'cannot access|No such file' || echo 'No event watch log files found')" \
+                  > /tmp/artifacts/iterations/iter_${i}/${node}/file_list.txt 2>&1
+
+                # Copy each event_watch_output file
+                for logfile in $(docker exec ${node} bash -c \
+                  "cd /home/fluxuser && ls event_watch_output.* 2>/dev/null || true"); do
+                  docker cp ${node}:/home/fluxuser/${logfile} \
+                    /tmp/artifacts/iterations/iter_${i}/${node}/ 2>/dev/null || true
+                done
               done
 
-              # Analyze all container logs to check if all ranks got callbacks
+              # Analyze all log files to check if all ranks got callbacks
               echo "  Checking callback delivery..."
 
-              # Count how many ranks registered watches (check all node logs)
-              registered_count=$(grep -ch "\[REGISTERED rank=" /tmp/artifacts/iterations/iter_${i}/node-*.log 2>/dev/null | awk '{s+=$1} END {print s}' || echo "0")
+              # Count how many ranks registered watches
+              registered_count=$(grep -ch "\[REGISTERED rank=" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null | awk '{s+=$1} END {print s}' || echo "0")
 
-              # Count how many ranks reported success (check all node logs)
-              success_rank_count=$(grep -ch "\[SUCCESS rank=" /tmp/artifacts/iterations/iter_${i}/node-*.log 2>/dev/null | awk '{s+=$1} END {print s}' || echo "0")
+              # Count how many ranks reported success
+              success_rank_count=$(grep -ch "\[SUCCESS rank=" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null | awk '{s+=$1} END {print s}' || echo "0")
 
               echo "  Registered: ${registered_count}, Successful: ${success_rank_count}"
 
@@ -120,7 +133,7 @@ jobs:
 
                 # Identify which ranks failed
                 for rank in $(seq 0 $((NODE_COUNT - 1))); do
-                  if ! grep -q "\[SUCCESS rank=${rank}\]" /tmp/artifacts/iterations/iter_${i}/node-*.log 2>/dev/null; then
+                  if ! grep -q "\[SUCCESS rank=${rank}\]" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null; then
                     echo "    Rank ${rank} FAILED to receive callback"
                     echo "${rank}" >> /tmp/artifacts/iterations/iter_${i}/diagnostics/failed_ranks.txt
                   fi
@@ -164,6 +177,12 @@ jobs:
                 break
               fi
 
+              # Clean up log files for next iteration
+              for node in $NODE_LIST; do
+                docker exec ${node} bash -c \
+                  "cd /home/fluxuser && rm -f event_watch_output.*" 2>/dev/null || true
+              done
+
             else
               # ===== TIMEOUT =====
               rc=$?
@@ -171,10 +190,18 @@ jobs:
                 echo "Iteration $i: TIMEOUT (hung)"
                 timeout_count=$((timeout_count + 1))
 
-                # Collect logs from all containers
-                echo "  Collecting container logs from all nodes..."
+                # Collect log files from all containers
+                echo "  Collecting event watch logs from all nodes..."
                 for node in $NODE_LIST; do
-                  docker logs ${node} > /tmp/artifacts/iterations/iter_${i}/${node}.log 2>&1 || true
+                  echo "    Collecting logs from ${node}..."
+                  mkdir -p /tmp/artifacts/iterations/iter_${i}/${node}
+
+                  # Copy each event_watch_output file
+                  for logfile in $(docker exec ${node} bash -c \
+                    "cd /home/fluxuser && ls event_watch_output.* 2>/dev/null || true"); do
+                    docker cp ${node}:/home/fluxuser/${logfile} \
+                      /tmp/artifacts/iterations/iter_${i}/${node}/ 2>/dev/null || true
+                  done
                 done
 
                 # Collect diagnostics from all nodes
@@ -196,6 +223,12 @@ jobs:
                 break
               else
                 echo "Iteration $i: FAILED (exit code $rc)"
+
+                # Clean up for next iteration
+                for node in $NODE_LIST; do
+                  docker exec ${node} bash -c \
+                    "cd /home/fluxuser && rm -f event_watch_output.*" 2>/dev/null || true
+                done
               fi
             fi
           done

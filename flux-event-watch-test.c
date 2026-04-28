@@ -9,6 +9,8 @@
 #define FLUX_SHELL_PLUGIN_NAME "event-watch-test"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <flux/core.h>
 #include <flux/shell.h>
 
@@ -22,6 +24,7 @@ struct watch_ctx {
     flux_jobid_t jobid;
     flux_future_t *watch_future;
     int success;
+    FILE *logfile;
 };
 
 /* Callback invoked for each event in guest.exec.eventlog */
@@ -29,24 +32,29 @@ static void event_watch_callback(flux_future_t *f, void *arg)
 {
     struct watch_ctx *ctx = arg;
     const char *event;
+    FILE *log = ctx->logfile ? ctx->logfile : stderr;
 
-    fprintf(stderr, "[QQQ rank=%d seq=%lu] %s:%d:%s - Callback fired!\n",
+    fprintf(log, "[QQQ rank=%d seq=%lu] %s:%d:%s - Callback fired!\n",
             ctx->rank, seq++, __FILE__, __LINE__, __func__);
+    fflush(log);
 
     /* Get the event from the future */
     if (flux_job_event_watch_get(f, &event) < 0) {
-        fprintf(stderr, "[ERROR rank=%d] flux_job_event_watch_get: %s\n",
+        fprintf(log, "[ERROR rank=%d] flux_job_event_watch_get: %s\n",
                 ctx->rank, flux_strerror(errno));
+        fflush(log);
         return;
     }
 
     /* Log the event we received */
-    fprintf(stderr, "[EVENT rank=%d] Received event: %s\n", ctx->rank, event);
+    fprintf(log, "[EVENT rank=%d] Received event: %s\n", ctx->rank, event);
+    fflush(log);
 
     /* Check if this is the shell.init event we're waiting for */
     if (strstr(event, "\"name\":\"shell.init\"") != NULL) {
-        fprintf(stderr, "[SUCCESS rank=%d] Found shell.init event - callbacks working!\n",
+        fprintf(log, "[SUCCESS rank=%d] Found shell.init event - callbacks working!\n",
                 ctx->rank);
+        fflush(log);
         ctx->success = 1;
 
         /* Cancel the watch - we're done */
@@ -70,35 +78,60 @@ static int shell_init_callback(flux_plugin_t *p,
     flux_jobid_t jobid;
     int rank;
     struct watch_ctx *ctx = NULL;
+    char hostname[256];
+    char logpath[512];
+    FILE *logfile = NULL;
 
-    fprintf(stderr, "[QQQ seq=%lu] %s:%d:%s - Entered\n",
+    /* Open log file - similar to Spindle's naming pattern */
+    if (gethostname(hostname, sizeof(hostname)) < 0) {
+        snprintf(hostname, sizeof(hostname), "unknown");
+    }
+    snprintf(logpath, sizeof(logpath), "event_watch_output.%s.%d", hostname, getpid());
+
+    logfile = fopen(logpath, "w");
+    if (!logfile) {
+        fprintf(stderr, "[ERROR] Failed to open log file %s, using stderr\n", logpath);
+        logfile = stderr;
+    }
+
+    fprintf(logfile, "[QQQ seq=%lu] %s:%d:%s - Entered\n",
             seq++, __FILE__, __LINE__, __func__);
+    fflush(logfile);
 
     /* Get flux handle */
     if (!(h = flux_shell_get_flux(shell))) {
-        fprintf(stderr, "[ERROR] flux_shell_get_flux failed\n");
+        fprintf(logfile, "[ERROR] flux_shell_get_flux failed\n");
+        fflush(logfile);
+        if (logfile != stderr) fclose(logfile);
         return -1;
     }
 
     /* Get shell rank */
     if (flux_shell_rank_info_unpack(shell, -1, "rank", &rank) < 0) {
-        fprintf(stderr, "[ERROR] flux_shell_rank_info_unpack failed\n");
+        fprintf(logfile, "[ERROR] flux_shell_rank_info_unpack failed\n");
+        fflush(logfile);
+        if (logfile != stderr) fclose(logfile);
         return -1;
     }
 
     /* Get job ID */
     if (flux_shell_info_unpack(shell, "{s:I}", "jobid", &jobid) < 0) {
-        fprintf(stderr, "[ERROR] flux_shell_info_unpack failed\n");
+        fprintf(logfile, "[ERROR] flux_shell_info_unpack failed\n");
+        fflush(logfile);
+        if (logfile != stderr) fclose(logfile);
         return -1;
     }
 
-    fprintf(stderr, "[INIT rank=%d jobid=%ju] Registering event watch\n",
+    fprintf(logfile, "[INIT rank=%d jobid=%ju] Registering event watch\n",
             rank, (uintmax_t)jobid);
+    fflush(logfile);
 
     /* Allocate context */
     ctx = calloc(1, sizeof(*ctx));
     if (!ctx) {
-        fprintf(stderr, "[ERROR rank=%d] calloc failed\n", rank);
+        fprintf(logfile, "[ERROR rank=%d] calloc failed\n", rank);
+        fflush(logfile);
+        if (logfile != stderr) fclose(logfile);
         return -1;
     }
     ctx->h = h;
@@ -106,35 +139,43 @@ static int shell_init_callback(flux_plugin_t *p,
     ctx->rank = rank;
     ctx->jobid = jobid;
     ctx->success = 0;
+    ctx->logfile = logfile;
 
     /* Register event watch on guest.exec.eventlog */
-    fprintf(stderr, "[QQQ rank=%d seq=%lu] %s:%d - About to call flux_job_event_watch\n",
+    fprintf(logfile, "[QQQ rank=%d seq=%lu] %s:%d - About to call flux_job_event_watch\n",
             rank, seq++, __FILE__, __LINE__);
+    fflush(logfile);
 
     ctx->watch_future = flux_job_event_watch(h, jobid, "guest.exec.eventlog", 0);
     if (!ctx->watch_future) {
-        fprintf(stderr, "[ERROR rank=%d] flux_job_event_watch failed: %s\n",
+        fprintf(logfile, "[ERROR rank=%d] flux_job_event_watch failed: %s\n",
                 rank, flux_strerror(errno));
+        fflush(logfile);
+        if (logfile != stderr) fclose(logfile);
         free(ctx);
         return -1;
     }
 
-    fprintf(stderr, "[QQQ rank=%d seq=%lu] %s:%d - flux_job_event_watch succeeded\n",
+    fprintf(logfile, "[QQQ rank=%d seq=%lu] %s:%d - flux_job_event_watch succeeded\n",
             rank, seq++, __FILE__, __LINE__);
+    fflush(logfile);
 
     /* Register callback */
     if (flux_future_then(ctx->watch_future, -1.0, event_watch_callback, ctx) < 0) {
-        fprintf(stderr, "[ERROR rank=%d] flux_future_then failed: %s\n",
+        fprintf(logfile, "[ERROR rank=%d] flux_future_then failed: %s\n",
                 rank, flux_strerror(errno));
+        fflush(logfile);
         flux_future_destroy(ctx->watch_future);
+        if (logfile != stderr) fclose(logfile);
         free(ctx);
         return -1;
     }
 
-    fprintf(stderr, "[QQQ rank=%d seq=%lu] %s:%d - flux_future_then succeeded, callback registered\n",
+    fprintf(logfile, "[QQQ rank=%d seq=%lu] %s:%d - flux_future_then succeeded, callback registered\n",
             rank, seq++, __FILE__, __LINE__);
-    fprintf(stderr, "[REGISTERED rank=%d] Event watch and callback registered successfully\n",
+    fprintf(logfile, "[REGISTERED rank=%d] Event watch and callback registered successfully\n",
             rank);
+    fflush(logfile);
 
     /* Store context in plugin aux for cleanup */
     flux_plugin_aux_set(p, "watch_ctx", ctx, free);
