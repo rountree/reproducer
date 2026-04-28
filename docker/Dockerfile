@@ -21,6 +21,7 @@ COPY flux-config/ /home/fluxuser/flux-config/
 
 # Copy reproducer source
 COPY flux-event-watch-test.c /home/fluxuser/
+COPY event-watch-test.rc /home/fluxuser/
 COPY Makefile /home/fluxuser/
 COPY run_test.sh /home/fluxuser/
 COPY docker/entrypoint.sh /home/fluxuser/
