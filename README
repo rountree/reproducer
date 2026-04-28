@@ -1,0 +1,13 @@
+Minimal-ish reproducer for https://github.com/flux-framework/flux-core/issues/7575
+
+In short, the follow code in Spindle
+
+    if (!(f = flux_job_event_watch (h, id, "guest.exec.eventlog", 0))
+        || flux_future_then (f, -1., wait_for_shell_init, ctx) < 0)
+        shell_die (1, "flux_job_event_watch");
+
+when executed in a parallelized containerized environment via GitHub Actions,
+will reliably result in 3-7 containers not receiving any of the expected events
+from flux, even though the events are in flux's guest event log.
+
+
