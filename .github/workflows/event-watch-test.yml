@@ -265,6 +265,25 @@ jobs:
               else
                 echo "Iteration $i: FAILED (exit code $rc)"
 
+                # Collect log files to diagnose the failure
+                echo "  Collecting event watch logs from all nodes..."
+                for node in $NODE_LIST; do
+                  echo "    Collecting logs from ${node}..."
+                  mkdir -p /tmp/artifacts/iterations/iter_${i}/${node}
+
+                  # List what files exist
+                  docker exec ${node} bash -c \
+                    "cd /tmp && (ls -la event_watch_output.* 2>&1 | grep -vE 'cannot access|No such file' || echo 'No event watch log files found')" \
+                    > /tmp/artifacts/iterations/iter_${i}/${node}/file_list.txt 2>&1
+
+                  # Copy each event_watch_output file
+                  for logfile in $(docker exec ${node} bash -c \
+                    "cd /tmp && ls event_watch_output.* 2>/dev/null || true"); do
+                    docker cp ${node}:/tmp/${logfile} \
+                      /tmp/artifacts/iterations/iter_${i}/${node}/ 2>/dev/null || true
+                  done
+                done
+
                 # Clean up for next iteration
                 for node in $NODE_LIST; do
                   docker exec ${node} bash -c \
