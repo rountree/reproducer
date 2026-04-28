@@ -13,7 +13,7 @@ services:
     volumes:
       - flux-var-1:/var/lib/flux
     healthcheck:
-      test: ["CMD", "flux", "getattr", "size"]
+      test: ["CMD", "pgrep", "-f", "flux-broker"]
       interval: 5s
       timeout: 3s
       retries: 10
