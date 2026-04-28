@@ -4,11 +4,11 @@ FROM fluxrm/flux-sched:noble-v0.48.0-amd64
 USER root
 
 # Install build dependencies
+# Note: flux-core and dev headers already in base image
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
         pkg-config \
-        libflux-dev \
         gdb \
         sudo && \
     rm -rf /var/lib/apt/lists/*
