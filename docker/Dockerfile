@@ -13,9 +13,8 @@ RUN apt-get update && \
         sudo && \
     rm -rf /var/lib/apt/lists/*
 
-# Create fluxuser
-RUN useradd -ms /bin/bash fluxuser && \
-    echo "fluxuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# Add sudo permissions for fluxuser (already exists in base image)
+RUN echo "fluxuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Copy reproducer source
 COPY flux-event-watch-test.c /home/fluxuser/
