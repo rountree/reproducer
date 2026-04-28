@@ -143,13 +143,13 @@ jobs:
 
                 # List what files exist
                 docker exec ${node} bash -c \
-                  "cd /home/fluxuser && (ls -la event_watch_output.* 2>&1 | grep -vE 'cannot access|No such file' || echo 'No event watch log files found')" \
+                  "cd /tmp && (ls -la event_watch_output.* 2>&1 | grep -vE 'cannot access|No such file' || echo 'No event watch log files found')" \
                   > /tmp/artifacts/iterations/iter_${i}/${node}/file_list.txt 2>&1
 
                 # Copy each event_watch_output file
                 for logfile in $(docker exec ${node} bash -c \
-                  "cd /home/fluxuser && ls event_watch_output.* 2>/dev/null || true"); do
-                  docker cp ${node}:/home/fluxuser/${logfile} \
+                  "cd /tmp && ls event_watch_output.* 2>/dev/null || true"); do
+                  docker cp ${node}:/tmp/${logfile} \
                     /tmp/artifacts/iterations/iter_${i}/${node}/ 2>/dev/null || true
                 done
               done
@@ -221,7 +221,7 @@ jobs:
               # Clean up log files for next iteration
               for node in $NODE_LIST; do
                 docker exec ${node} bash -c \
-                  "cd /home/fluxuser && rm -f event_watch_output.*" 2>/dev/null || true
+                  "cd /tmp && rm -f event_watch_output.*" 2>/dev/null || true
               done
 
             else
@@ -240,7 +240,7 @@ jobs:
                   # Copy each event_watch_output file
                   for logfile in $(docker exec ${node} bash -c \
                     "cd /home/fluxuser && ls event_watch_output.* 2>/dev/null || true"); do
-                    docker cp ${node}:/home/fluxuser/${logfile} \
+                    docker cp ${node}:/tmp/${logfile} \
                       /tmp/artifacts/iterations/iter_${i}/${node}/ 2>/dev/null || true
                   done
                 done
@@ -268,7 +268,7 @@ jobs:
                 # Clean up for next iteration
                 for node in $NODE_LIST; do
                   docker exec ${node} bash -c \
-                    "cd /home/fluxuser && rm -f event_watch_output.*" 2>/dev/null || true
+                    "cd /tmp && rm -f event_watch_output.*" 2>/dev/null || true
                 done
               fi
             fi
