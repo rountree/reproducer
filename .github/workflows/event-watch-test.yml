@@ -23,6 +23,9 @@ jobs:
       - name: Check out reproducer
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
+      - name: Set short SHA for artifact naming
+        run: echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
       - name: Setup Docker Compose
         uses: docker/setup-compose-action@8cccb8c14b6500aaffebff1aa49c502c34d2e5e6
         with:
@@ -276,7 +279,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: event-watch-test-logs-${{ github.run_number }}
+          name: event-watch-test-logs-${{ github.run_number }}-${{ env.SHORT_SHA }}
           path: /tmp/artifacts/
           retention-days: 30
           if-no-files-found: warn
