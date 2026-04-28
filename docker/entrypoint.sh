@@ -45,7 +45,15 @@ else
 fi
 
 # Start flux broker
-BROKER_OPTS="-Slog-stderr-level=7 -Slog-stderr-mode=local"
+BROKER_OPTS="-Srundir=/run/flux"
+BROKER_OPTS="$BROKER_OPTS -Sstatedir=/var/lib/flux"
+BROKER_OPTS="$BROKER_OPTS -Slocal-uri=local:///run/flux/local"
+BROKER_OPTS="$BROKER_OPTS -Slog-stderr-level=7"
+BROKER_OPTS="$BROKER_OPTS -Slog-stderr-mode=local"
+
+# Ensure socket directory exists with correct permissions
+sudo mkdir -p /run/flux
+sudo chown fluxuser:fluxuser /run/flux
 
 if [ $IS_MAIN -eq 1 ]; then
     # Main node
