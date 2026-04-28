@@ -184,9 +184,18 @@ jobs:
           echo "Results: ${success_count} successful, ${timeout_count} timeouts, bug_found=${found_bug}"
 
           # Generate summary report
-          cat > /tmp/artifacts/analysis/summary.txt <<EOF
+          if [ "$found_bug" = "true" ]; then
+            actual_behavior="Some ranks did NOT receive callbacks"
+          else
+            actual_behavior="All ranks received callbacks (bug not reproduced)"
+          fi
+
+          cat > /tmp/artifacts/analysis/summary.txt <<'SUMMARY_EOF'
 Flux Event Watch Test Summary
 ==============================
+SUMMARY_EOF
+
+          cat >> /tmp/artifacts/analysis/summary.txt <<EOF
 Date: $(date)
 Node count: ${NODE_COUNT}
 Iterations run: $i
@@ -197,7 +206,7 @@ Results:
 - Bug detected: ${found_bug}
 
 Expected behavior: All ${NODE_COUNT} ranks should receive callbacks and log SUCCESS
-Actual behavior: $([ "$found_bug" = "true" ] && echo "Some ranks did NOT receive callbacks" || echo "All ranks received callbacks (bug not reproduced)")
+Actual behavior: ${actual_behavior}
 
 See iterations/ directory for per-iteration logs
 See iterations/iter_N/diagnostics/ for flux diagnostics when bug was detected
