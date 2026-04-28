@@ -22,8 +22,20 @@ sudo chown fluxuser:fluxuser /run/flux /var/lib/flux
 echo "Starting flux with --test-size=${workers}"
 echo "Flux version: $(flux version)"
 
+# Broker configuration options
+BROKER_OPTS="-Srundir=/run/flux"
+BROKER_OPTS="$BROKER_OPTS -Sstatedir=/var/lib/flux"
+BROKER_OPTS="$BROKER_OPTS -Slocal-uri=local:///run/flux/local"
+BROKER_OPTS="$BROKER_OPTS -Slog-stderr-level=7"
+BROKER_OPTS="$BROKER_OPTS -Slog-stderr-mode=local"
+
+echo "Broker options: $BROKER_OPTS"
+
 # Use flux start in test mode - no authentication needed
 # Don't use exec so we can see errors
-flux start --test-size=${workers} sleep infinity
-echo "ERROR: flux start exited with code $?"
+set -x
+flux start --test-size=${workers} -o ${BROKER_OPTS} sleep infinity
+RC=$?
+set +x
+echo "ERROR: flux start exited with code $RC"
 exit 1
