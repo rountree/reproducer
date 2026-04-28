@@ -1,13 +1,68 @@
-Minimal-ish reproducer for https://github.com/flux-framework/flux-core/issues/7575
+Minimal reproducer for https://github.com/flux-framework/flux-core/issues/7575
 
-In short, the follow code in Spindle
+## The Bug
 
-    if (!(f = flux_job_event_watch (h, id, "guest.exec.eventlog", 0))
-        || flux_future_then (f, -1., wait_for_shell_init, ctx) < 0)
-        shell_die (1, "flux_job_event_watch");
+In flux-core v0.82.0, when multiple flux-shell instances (one per node) each
+register an event watch on `guest.exec.eventlog` using:
 
-when executed in a parallelized containerized environment via GitHub Actions,
-will reliably result in 3-7 containers not receiving any of the expected events
-from flux, even though the events are in flux's guest event log.
+    flux_job_event_watch(h, jobid, "guest.exec.eventlog", 0)
+    flux_future_then(f, -1.0, callback, ctx)
+
+The watch registration succeeds with no errors, and the events ARE present in
+the KVS eventlog, but callbacks silently fail to fire on ~9-22% of nodes
+(non-deterministic).
+
+This was discovered in LLNL's Spindle project where tests would hang because
+some nodes never received the shell.init event callback, even though the event
+was in the eventlog.
+
+## Structure
+
+- `flux-event-watch-test.c` - Minimal shell plugin that demonstrates the bug
+- `Makefile` - Builds the plugin
+- `run_test.sh` - Test script (runs flux alloc)
+- `docker/` - Docker infrastructure for multi-node testing
+- `.github/workflows/event-watch-test.yml` - GitHub Actions workflow
+
+## How It Works
+
+The shell plugin (`flux-event-watch-test.so`) is loaded by flux-shell on each
+node. During the shell.init phase, each shell instance:
+
+1. Registers an event watch on `guest.exec.eventlog`
+2. Logs `[REGISTERED rank=N]` to stderr
+3. When callback fires, logs `[EVENT rank=N] Received event: ...`
+4. When shell.init event is seen, logs `[SUCCESS rank=N]` and stops watching
+
+The test harness runs flux alloc in a loop and checks the logs:
+- If all N ranks log `[SUCCESS rank=N]`, the test passes
+- If any rank fails to log SUCCESS, the bug is reproduced
+
+## Running Locally
+
+Build and test with Docker:
+
+```bash
+cd docker
+./generate_compose.sh 32
+docker compose build
+docker compose up -d --wait
+docker exec node-1 bash -c "cd /home/fluxuser && NODES=\${workers} ./run_test.sh"
+docker compose down
+```
+
+## Running on GitHub Actions
+
+The workflow `.github/workflows/event-watch-test.yml` automates this:
+- Builds a 32-node cluster
+- Runs flux alloc in a loop (up to 100 iterations)
+- Checks stderr logs after each iteration
+- On first failure, collects flux diagnostics and exits
+- Uploads all logs as artifacts
+
+## Expected Result
+
+With flux-core v0.82.0, this should reproduce the bug within a few iterations,
+showing that 3-7 nodes (out of 32) failed to receive callbacks.
 
 

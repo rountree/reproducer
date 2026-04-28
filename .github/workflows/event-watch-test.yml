@@ -1,0 +1,231 @@
+name: flux-event-watch-test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ci-${{github.ref}}-${{github.run_number}}
+  cancel-in-progress: true
+
+jobs:
+  event-watch-test:
+    name: Flux Event Watch Test (32 nodes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      NODE_COUNT: 32
+    steps:
+      - name: Check out reproducer
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Setup Docker Compose
+        uses: docker/setup-compose-action@8cccb8c14b6500aaffebff1aa49c502c34d2e5e6
+        with:
+          version: latest
+
+      - name: Generate docker-compose.yml for ${{ env.NODE_COUNT }} nodes
+        run: |
+          cd docker
+          ./generate_compose.sh ${{ env.NODE_COUNT }}
+
+      - name: Build flux-event-watch-test image
+        run: |
+          cd docker
+          docker compose --progress=plain build
+
+      - name: Bring cluster up
+        run: |
+          cd docker
+          docker compose up -d --wait --wait-timeout 300
+
+      - name: Verify munge works
+        run: |
+          docker exec node-1 bash -c 'munge -n | unmunge'
+
+      - name: Run event watch test iterations
+        run: |
+          # Configuration
+          ITERATION_TIMEOUT_SECONDS=60
+          MAX_ITERATIONS=100
+          NODE_COUNT=${{ env.NODE_COUNT }}
+
+          # Generate node list dynamically
+          NODE_LIST=$(seq -f "node-%.0f" 1 $NODE_COUNT | tr '\n' ' ')
+          echo "Node list: ${NODE_LIST}"
+
+          # Create artifact staging directory
+          mkdir -p /tmp/artifacts/iterations
+          mkdir -p /tmp/artifacts/analysis
+
+          echo "Starting test iterations at $(date)"
+          echo "Configuration: timeout=${ITERATION_TIMEOUT_SECONDS}s, max_iterations=${MAX_ITERATIONS}, nodes=${NODE_COUNT}"
+
+          success_count=0
+          timeout_count=0
+          found_bug=false
+
+          for i in $(seq 1 $MAX_ITERATIONS); do
+            echo ""
+            echo "=== Iteration $i at $(date) ==="
+
+            # Create directory for this iteration
+            mkdir -p /tmp/artifacts/iterations/iter_${i}
+
+            # Run test with timeout
+            # IMPORTANT: flux alloc is INSIDE the loop per user requirement
+            if timeout ${ITERATION_TIMEOUT_SECONDS} docker exec node-1 bash -c \
+                "cd /home/fluxuser && NODES=\${workers} ./run_test.sh" \
+                > /tmp/artifacts/iterations/iter_${i}/stdout.log 2>&1; then
+
+              # ===== SUCCESS =====
+              echo "Iteration $i: COMPLETED"
+              success_count=$((success_count + 1))
+
+              # Analyze stdout to check if all ranks got callbacks
+              echo "  Checking callback delivery..."
+
+              # Count how many ranks registered watches
+              registered_count=$(grep -c "\[REGISTERED rank=" /tmp/artifacts/iterations/iter_${i}/stdout.log || echo "0")
+
+              # Count how many ranks reported success
+              success_rank_count=$(grep -c "\[SUCCESS rank=" /tmp/artifacts/iterations/iter_${i}/stdout.log || echo "0")
+
+              echo "  Registered: ${registered_count}, Successful: ${success_rank_count}"
+
+              if [ "$success_rank_count" -lt "$NODE_COUNT" ]; then
+                echo "  *** BUG DETECTED: Only ${success_rank_count}/${NODE_COUNT} ranks received callbacks ***"
+                found_bug=true
+
+                # Collect detailed diagnostics
+                mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics
+
+                # Identify which ranks failed
+                for rank in $(seq 0 $((NODE_COUNT - 1))); do
+                  if ! grep -q "\[SUCCESS rank=${rank}\]" /tmp/artifacts/iterations/iter_${i}/stdout.log; then
+                    echo "    Rank ${rank} FAILED to receive callback"
+                    echo "${rank}" >> /tmp/artifacts/iterations/iter_${i}/diagnostics/failed_ranks.txt
+                  fi
+                done
+
+                # Collect flux diagnostics from all nodes
+                for node in $NODE_LIST; do
+                  echo "    Collecting diagnostics from ${node}..."
+                  mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}
+
+                  # Get job list
+                  docker exec ${node} bash -c \
+                    "flux jobs -a -o '{id} {name} {status} {t_submit}' 2>&1 || echo 'flux jobs failed'" \
+                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/jobs_list.txt 2>&1 || true
+
+                  # Get most recent job eventlogs
+                  docker exec ${node} bash -c \
+                    "JOBID=\$(flux job last 2>/dev/null); \
+                     if [ -n \"\$JOBID\" ]; then \
+                       echo \"Job ID: \$JOBID\"; \
+                       echo \"=== Main eventlog ===\";\
+                       flux job eventlog \$JOBID 2>&1 || echo 'flux job eventlog failed'; \
+                       echo \"\"; \
+                       echo \"=== Guest exec eventlog ===\";\
+                       flux job eventlog -p guest.exec.eventlog \$JOBID 2>&1 || echo 'guest.exec.eventlog failed'; \
+                     else \
+                       echo 'No recent job found'; \
+                     fi" \
+                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/eventlogs.txt 2>&1 || true
+
+                  # Get broker logs
+                  docker exec ${node} bash -c \
+                    "flux dmesg 2>&1 || echo 'flux dmesg failed'" \
+                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/broker_dmesg.txt 2>&1 || true
+                done
+
+                # Stop after first bug detection
+                echo "Stopping after bug detection"
+                break
+              fi
+
+            else
+              # ===== TIMEOUT =====
+              rc=$?
+              if [ $rc -eq 124 ]; then
+                echo "Iteration $i: TIMEOUT (hung)"
+                timeout_count=$((timeout_count + 1))
+
+                # Collect diagnostics similar to bug case
+                mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics
+
+                for node in $NODE_LIST; do
+                  echo "  Collecting timeout diagnostics from ${node}..."
+                  mkdir -p /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}
+
+                  docker exec ${node} bash -c \
+                    "flux jobs -a 2>&1 || echo 'flux jobs failed'" \
+                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/jobs_list.txt 2>&1 || true
+
+                  docker exec ${node} bash -c \
+                    "flux dmesg 2>&1 || echo 'flux dmesg failed'" \
+                    > /tmp/artifacts/iterations/iter_${i}/diagnostics/${node}/broker_dmesg.txt 2>&1 || true
+                done
+
+                echo "Stopping after timeout"
+                break
+              else
+                echo "Iteration $i: FAILED (exit code $rc)"
+              fi
+            fi
+          done
+
+          echo ""
+          echo "Test run completed at $(date)"
+          echo "Results: ${success_count} successful, ${timeout_count} timeouts, bug_found=${found_bug}"
+
+          # Generate summary report
+          cat > /tmp/artifacts/analysis/summary.txt <<EOF
+Flux Event Watch Test Summary
+==============================
+Date: $(date)
+Node count: ${NODE_COUNT}
+Iterations run: $i
+
+Results:
+- Successful iterations: ${success_count}
+- Timeouts: ${timeout_count}
+- Bug detected: ${found_bug}
+
+Expected behavior: All ${NODE_COUNT} ranks should receive callbacks and log SUCCESS
+Actual behavior: $([ "$found_bug" = "true" ] && echo "Some ranks did NOT receive callbacks" || echo "All ranks received callbacks (bug not reproduced)")
+
+See iterations/ directory for per-iteration logs
+See iterations/iter_N/diagnostics/ for flux diagnostics when bug was detected
+EOF
+
+          cat /tmp/artifacts/analysis/summary.txt
+
+          # Exit with error if bug was detected
+          if [ "$found_bug" = "true" ]; then
+            echo "::error::Event watch callback bug reproduced - not all ranks received callbacks"
+            exit 1
+          elif [ $timeout_count -gt 0 ]; then
+            echo "::error::Test timed out"
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: event-watch-test-logs-${{ github.run_number }}
+          path: /tmp/artifacts/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Bring cluster down
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          cd docker
+          docker compose down
