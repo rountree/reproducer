@@ -15,7 +15,15 @@ if [ -z "${workers}" ]; then
     exit 1
 fi
 
+# Ensure flux directories exist
+sudo mkdir -p /run/flux /var/lib/flux
+sudo chown fluxuser:fluxuser /run/flux /var/lib/flux
+
 echo "Starting flux with --test-size=${workers}"
+echo "Flux version: $(flux version)"
 
 # Use flux start in test mode - no authentication needed
-exec flux start --test-size=${workers} sleep infinity
+# Don't use exec so we can see errors
+flux start --test-size=${workers} sleep infinity
+echo "ERROR: flux start exited with code $?"
+exit 1
