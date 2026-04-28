@@ -158,10 +158,10 @@ jobs:
               echo "  Checking callback delivery..."
 
               # Count how many ranks registered watches
-              registered_count=$(grep -ch "\[REGISTERED rank=" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null | awk '{s+=$1} END {print s}' || echo "0")
+              registered_count=$(grep -ch "\[REGISTERED rank=" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null | awk '{s+=$1} END {print s+0}' || echo "0")
 
               # Count how many ranks reported success
-              success_rank_count=$(grep -ch "\[SUCCESS rank=" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null | awk '{s+=$1} END {print s}' || echo "0")
+              success_rank_count=$(grep -ch "\[SUCCESS rank=" /tmp/artifacts/iterations/iter_${i}/*/event_watch_output.* 2>/dev/null | awk '{s+=$1} END {print s+0}' || echo "0")
 
               echo "  Registered: ${registered_count}, Successful: ${success_rank_count}"
 
