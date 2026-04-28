@@ -10,6 +10,7 @@ services:
     environment:
       - workers=NODECOUNT
       - FLUX_SHELL_VERBOSE=2
+      - FLUXRC=/home/fluxuser/event-watch-test.rc
     volumes:
       - flux-var-1:/var/lib/flux
       - flux-etc:/etc/flux:rw
@@ -34,6 +35,7 @@ services:
     environment:
       - workers=NODECOUNT
       - FLUX_SHELL_VERBOSE=2
+      - FLUXRC=/home/fluxuser/event-watch-test.rc
     volumes:
       - flux-var-N:/var/lib/flux
       - flux-etc:/etc/flux:ro
