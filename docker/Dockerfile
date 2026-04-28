@@ -1,4 +1,4 @@
-FROM fluxrm/flux-sched:noble-v0.48.0-amd64
+FROM fluxrm/flux-sched@sha256:efd2a45e7b0797140ac33ef62b75f1324e3db195628f9d4a5fbea35098092d7b
 
 # Run as root for package installation
 USER root
