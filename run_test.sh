@@ -12,14 +12,15 @@ echo "======================================"
 echo "Flux Event Watch Test"
 echo "Nodes: $NODES"
 echo "Flux shell plugin: /usr/lib/flux/shell/flux-event-watch-test.so"
+echo "RC file: event-watch-test.rc"
 echo "======================================"
 
 # Simple test command - just sleep briefly
 # The bug is in the event watch callback delivery, not in what the job does
 TEST_CMD="sleep 1"
 
-echo "Running: flux alloc --nodes=$NODES --setopt=shell.plugins=/usr/lib/flux/shell/flux-event-watch-test.so bash -c \"$TEST_CMD\""
-flux alloc --nodes=$NODES --setopt=shell.plugins=/usr/lib/flux/shell/flux-event-watch-test.so bash -c "$TEST_CMD"
+echo "Running: flux alloc --nodes=$NODES -o userrc=event-watch-test.rc bash -c \"$TEST_CMD\""
+flux alloc --nodes=$NODES -o userrc=event-watch-test.rc bash -c "$TEST_CMD"
 
 echo ""
 echo "Test completed"
