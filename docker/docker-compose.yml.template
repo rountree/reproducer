@@ -12,19 +12,49 @@ services:
       - FLUX_SHELL_VERBOSE=2
     volumes:
       - flux-var-1:/var/lib/flux
+      - flux-etc:/etc/flux:rw
+    cap_add:
+      - SYS_PTRACE  # For GDB
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "flux-broker"]
+      test: ["CMD", "flux", "getattr", "size"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 30s
 
-# Note: With --test-size, flux simulates N nodes in a single container
-# No additional containers needed
+# NODE_TEMPLATE_START
+  node-N:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: node-N
+    hostname: node-N
+    networks:
+      - flux-net
+    environment:
+      - workers=NODECOUNT
+      - FLUX_SHELL_VERBOSE=2
+    volumes:
+      - flux-var-N:/var/lib/flux
+      - flux-etc:/etc/flux:ro
+    cap_add:
+      - SYS_PTRACE  # For GDB
+    depends_on:
+      node-1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "flux-broker"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+# NODE_TEMPLATE_END
 
 networks:
   flux-net:
     driver: bridge
 
 volumes:
+  flux-etc:
   flux-var-1:
+# Volume entries for additional nodes will be appended here

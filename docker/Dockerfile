@@ -16,6 +16,9 @@ RUN apt-get update && \
 # Add sudo permissions for fluxuser (already exists in base image)
 RUN echo "fluxuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+# Copy flux configuration
+COPY flux-config/ /home/fluxuser/flux-config/
+
 # Copy reproducer source
 COPY flux-event-watch-test.c /home/fluxuser/
 COPY Makefile /home/fluxuser/

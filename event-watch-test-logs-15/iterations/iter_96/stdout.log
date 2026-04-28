@@ -1,0 +1,7 @@
+======================================
+Flux Event Watch Test
+Nodes: 32
+Flux shell plugin: /usr/lib/flux/shell/flux-event-watch-test.so
+======================================
+Running: flux alloc --nodes=32 bash -c "sleep 1"
+flux-alloc: ERROR: Unable to connect to Flux: broker socket /run/flux/local was not found

@@ -1,0 +1,16 @@
+Flux Event Watch Test Summary
+==============================
+Date: Tue Apr 28 17:37:59 UTC 2026
+Node count: 32
+Iterations run: 100
+
+Results:
+- Successful iterations: 0
+- Timeouts: 0
+- Bug detected: false
+
+Expected behavior: All 32 ranks should receive callbacks and log SUCCESS
+Actual behavior: All ranks received callbacks (bug not reproduced)
+
+See iterations/ directory for per-iteration logs
+See iterations/iter_N/diagnostics/ for flux diagnostics when bug was detected

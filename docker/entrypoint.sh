@@ -1,39 +1,56 @@
 #!/bin/bash
 #
-# Simplified entrypoint for flux event watch reproducer
-# No munge needed - just flux
+# Entrypoint for multi-container flux cluster
 #
 
 set -e
 
-echo "Starting flux on $(hostname)"
-echo "Environment: workers=${workers}"
+# Determine hostname and rank
+HOSTNAME=$(hostname)
+echo "Starting flux on ${HOSTNAME}"
 
-# Check if workers is set
-if [ -z "${workers}" ]; then
-    echo "ERROR: workers environment variable not set"
-    exit 1
+# Main node (rank 0) or worker node?
+if [ "${HOSTNAME}" = "node-1" ]; then
+    echo "This is the main node (rank 0)"
+    IS_MAIN=1
+else
+    echo "This is a worker node"
+    IS_MAIN=0
 fi
 
-# Ensure flux directories exist
-sudo mkdir -p /run/flux /var/lib/flux
-sudo chown fluxuser:fluxuser /run/flux /var/lib/flux
+# Main node: generate curve certificate and R configuration
+if [ $IS_MAIN -eq 1 ]; then
+    echo "Generating flux configuration for ${workers} nodes"
 
-echo "Starting flux with --test-size=${workers}"
-echo "Flux version: $(flux version)"
+    # Create directories
+    sudo mkdir -p /etc/flux/system /etc/flux/config /etc/flux/imp/conf.d /run/flux /var/lib/flux
+    sudo chown -R fluxuser:fluxuser /etc/flux /run/flux /var/lib/flux
 
-# Broker configuration options
-# Note: Don't set local-uri in test mode - each rank needs its own socket
-BROKER_OPTS="-Slog-stderr-level=7"
-BROKER_OPTS="$BROKER_OPTS -Slog-stderr-mode=local"
+    # Generate curve certificate
+    flux keygen /etc/flux/system/curve.cert
 
-echo "Broker options: $BROKER_OPTS"
+    # Generate resource configuration
+    flux R encode --hosts="node-[1-${workers}]" > /etc/flux/system/R
 
-# Use flux start in test mode - no authentication needed
-# Don't use exec so we can see errors
-set -x
-flux start --test-size=${workers} -o ${BROKER_OPTS} sleep infinity
-RC=$?
-set +x
-echo "ERROR: flux start exited with code $RC"
-exit 1
+    # Update broker.toml with actual node count
+    sed "s/NODE_COUNT/${workers}/g" /home/fluxuser/flux-config/broker.toml > /etc/flux/config/broker.toml
+
+    # Copy IMP config
+    cp /home/fluxuser/flux-config/imp.toml /etc/flux/imp/conf.d/imp.toml
+
+    echo "Configuration complete, starting flux broker"
+else
+    echo "Worker node waiting for main node to initialize..."
+    sleep 15
+fi
+
+# Start flux broker
+BROKER_OPTS="-Slog-stderr-level=7 -Slog-stderr-mode=local"
+
+if [ $IS_MAIN -eq 1 ]; then
+    # Main node
+    flux start -o --config /etc/flux/config ${BROKER_OPTS} sleep infinity
+else
+    # Worker node
+    flux start -o --config /etc/flux/config ${BROKER_OPTS} sleep infinity
+fi

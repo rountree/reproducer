@@ -1,0 +1,6 @@
+# Flux IMP (Independent Minister of Privilege) configuration
+# Required for flux to execute tasks
+
+[exec]
+allowed-users = [ "fluxuser" ]
+allowed-shells = [ "/bin/bash", "/bin/sh" ]
