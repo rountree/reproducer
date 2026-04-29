@@ -19,8 +19,8 @@ echo "======================================"
 # The bug is in the event watch callback delivery, not in what the job does
 TEST_CMD="sleep 1"
 
-echo "Running: flux alloc --nodes=$NODES -o userrc=event-watch-test.rc bash -c \"$TEST_CMD\""
-flux alloc --nodes=$NODES -o userrc=event-watch-test.rc bash -c "$TEST_CMD"
+echo "Running: flux alloc --nodes=$NODES -o userrc=event-watch-test.rc -o spindle.level=high bash -c \"$TEST_CMD\""
+flux alloc --nodes=$NODES -o userrc=event-watch-test.rc -o spindle.level=high bash -c "$TEST_CMD"
 
 echo ""
 echo "Test completed"
