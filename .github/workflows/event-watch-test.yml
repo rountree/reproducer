@@ -39,7 +39,7 @@ jobs:
       - name: Build flux-event-watch-test image
         run: |
           cd docker
-          docker compose --progress=plain build
+          docker build --progress=plain -t flux-event-watch-test:latest -f Dockerfile ..
 
       - name: Bring cluster up
         run: |

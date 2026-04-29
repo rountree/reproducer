@@ -1,8 +1,6 @@
 services:
   node-1:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: flux-event-watch-test:latest
     container_name: node-1
     hostname: node-1
     networks:
@@ -25,9 +23,7 @@ services:
 
 # NODE_TEMPLATE_START
   node-N:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: flux-event-watch-test:latest
     container_name: node-N
     hostname: node-N
     networks:
