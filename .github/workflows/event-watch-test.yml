@@ -100,7 +100,7 @@ jobs:
         run: |
           # Configuration
           ITERATION_TIMEOUT_SECONDS=60
-          MAX_ITERATIONS=2
+          MAX_ITERATIONS=10
           NODE_COUNT=${{ env.NODE_COUNT }}
 
           # Generate node list dynamically
