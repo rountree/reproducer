@@ -9,6 +9,7 @@ RUN apt-get update && \
     apt-get install -y \
         build-essential \
         pkg-config \
+        libjansson-dev \
         gdb \
         sudo && \
     rm -rf /var/lib/apt/lists/*
