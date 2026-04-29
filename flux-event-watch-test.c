@@ -107,9 +107,9 @@ static int shell_init_callback(flux_plugin_t *p,
         return -1;
     }
 
-    /* Get shell rank - use task 0 to get the shell rank */
-    if (flux_shell_rank_info_unpack(shell, 0, "rank", &rank) < 0) {
-        fprintf(logfile, "[ERROR] flux_shell_rank_info_unpack(shell, 0, ...) failed\n");
+    /* Get shell rank from shell info (not task info) */
+    if (flux_shell_info_unpack(shell, "{s:i}", "rank", &rank) < 0) {
+        fprintf(logfile, "[ERROR] flux_shell_info_unpack failed to get rank\n");
         fflush(logfile);
         if (logfile != stderr) fclose(logfile);
         return -1;
