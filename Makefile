@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -fPIC $(shell pkg-config --cflags flux-core)
-LDFLAGS = -shared $(shell pkg-config --libs flux-core)
+CFLAGS = -Wall -Wextra -fPIC $(shell pkg-config --cflags flux-core jansson)
+LDFLAGS = -shared $(shell pkg-config --libs flux-core jansson)
 
 PLUGIN = flux-event-watch-test.so
 
