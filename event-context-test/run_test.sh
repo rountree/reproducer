@@ -5,19 +5,16 @@
 
 set -e
 
-NODES=${NODES:-4}
-
 echo "======================================"
 echo "Flux Event Context Test"
-echo "Nodes: $NODES"
 echo "Plugin: /usr/lib/flux/shell/test-plugin.so"
 echo "RC file: test.rc"
 echo "======================================"
 
 TEST_CMD="sleep 1"
 
-echo "Running: flux alloc --nodes=$NODES -o userrc=test.rc bash -c \"$TEST_CMD\""
-flux alloc --nodes=$NODES -o userrc=test.rc bash -c "$TEST_CMD"
+echo "Running: flux run -o userrc=test.rc $TEST_CMD"
+flux run -o userrc=test.rc $TEST_CMD
 
 echo ""
 echo "Test completed"
