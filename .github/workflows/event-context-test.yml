@@ -21,7 +21,7 @@ jobs:
 
       - name: Build test plugin image
         run: |
-          cd reproducer/event-context-test
+          cd event-context-test
           docker build -t event-context-test:latest .
 
       - name: Run test in single container
