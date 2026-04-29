@@ -194,7 +194,7 @@ static int shell_exit_callback(flux_plugin_t *p,
     (void)args;
     (void)data;
 
-    struct watch_context *ctx = flux_plugin_aux_get(p, "watch_ctx");
+    struct watch_ctx *ctx = flux_plugin_aux_get(p, "watch_ctx");
     if (ctx && ctx->watch_future) {
         flux_future_destroy(ctx->watch_future);
         ctx->watch_future = NULL;
