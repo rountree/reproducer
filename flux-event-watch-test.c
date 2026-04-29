@@ -449,6 +449,14 @@ static void wait_for_shell_init(flux_future_t *f, void *arg)
         return;
     }
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);
+
+    /* Print what event we're seeing (but limit output to avoid spam) */
+    static int event_print_count = 0;
+    if (event_print_count < 5) {
+        fprintf(stderr, "[RANK %d] Event name='%s'\n", ctx->shell_rank, name);
+        event_print_count++;
+    }
+
     if (strcmp(name, "shell.init") == 0) {
         fprintf(stderr, "[RANK %d] Found shell.init event: %s\n", ctx->shell_rank, event);
         rc = json_unpack(o,
@@ -639,6 +647,7 @@ static int sp_init(flux_plugin_t *p,
 
     /* All ranks watch guest.exec.eventlog for shell.init */
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);
+    fprintf(stderr, "[RANK %d] Watching job %ju guest.exec.eventlog\n", shell_rank, (uintmax_t)id);
     if (!(f = flux_job_event_watch(h, id, "guest.exec.eventlog", 0))
         || flux_future_then(f, -1., wait_for_shell_init, ctx) < 0) {
         err_printf(1, "flux_job_event_watch failed\n");
