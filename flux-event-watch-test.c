@@ -707,11 +707,11 @@ static int sp_exit(flux_plugin_t *p,
 
     debug_printf(1, "In flux plugin sp_exit\n");
     struct spindle_ctx *ctx = flux_plugin_aux_get(p, "spindle");
-    if (!spindle_is_enabled(ctx))
+    if (!ctx || !spindle_is_enabled(ctx))
         return 0;
     if (spindle_in_session_mode(h, NULL, NULL) > 0)
         return 0;
-    if (ctx && ctx->params.opts & OPT_OFF)
+    if (ctx->params.opts & OPT_OFF)
         return 0;
 
     /* Stub: In real Spindle, this is where frontend/backend would close */
