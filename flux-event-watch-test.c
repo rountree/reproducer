@@ -470,9 +470,13 @@ static void wait_for_shell_init(flux_future_t *f, void *arg)
             fprintf(stderr, "QQQ %s:%d:%s:%lu - CALLBACK SUCCESS rank=%d port=%d num_ports=%d\n",
                     __FILE__, __LINE__, __func__, seq++, ctx->shell_rank,
                     ctx->params.port, ctx->params.num_ports);
+            fprintf(stderr, "[TIMING TEST RESULT] RANK %d: SUCCESS - received shell.init event (registered watch before event posted)\n",
+                    ctx->shell_rank);
             if (global_logfile) {
                 fprintf(global_logfile, "[SUCCESS rank=%d] Found shell.init event with port=%d num_ports=%d - callbacks working!\n",
                         ctx->shell_rank, ctx->params.port, ctx->params.num_ports);
+                fprintf(global_logfile, "[TIMING TEST RESULT] RANK %d: SUCCESS - received shell.init event\n",
+                        ctx->shell_rank);
                 fflush(global_logfile);
             }
         } else {
@@ -630,7 +634,18 @@ static int sp_init(flux_plugin_t *p,
     }
 
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);
+
+    /* TIMING TEST: Deliberately delay rank 0's event posting and other ranks' watching
+     * to test hypothesis that flux_job_event_watch doesn't replay past events.
+     * - Rank 0: sleep 17s before posting event
+     * - Rank i: sleep (i * 0.5)s before watching
+     * Expected: ranks 0-15 succeed (watch before event), ranks 16-31 fail (watch after event)
+     */
     if (shell_rank == 0) {
+        fprintf(stderr, "[TIMING TEST rank=%d] Sleeping 17 seconds before posting event...\n", shell_rank);
+        sleep(17);
+        fprintf(stderr, "[TIMING TEST rank=%d] Awake! Now posting event.\n", shell_rank);
+
         /* Rank 0: add spindle port and num_ports to shell.init event */
         int rc;
         fprintf(stderr, "[SPINDLE rank=%d] Calling flux_shell_add_event_context with port=%d, num_ports=%d\n",
@@ -644,6 +659,13 @@ static int sp_init(flux_plugin_t *p,
         fprintf(stderr, "[SPINDLE rank=%d] flux_shell_add_event_context returned %d\n",
                 shell_rank, rc);
     }
+
+    /* All ranks: sleep (rank * 0.5) seconds before watching */
+    double sleep_time = shell_rank * 0.5;
+    fprintf(stderr, "[TIMING TEST rank=%d] Sleeping %.1f seconds before watching...\n",
+            shell_rank, sleep_time);
+    usleep((unsigned int)(sleep_time * 1000000));
+    fprintf(stderr, "[TIMING TEST rank=%d] Awake! Now starting watch.\n", shell_rank);
 
     /* All ranks watch guest.exec.eventlog for shell.init */
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);

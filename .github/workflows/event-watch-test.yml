@@ -99,8 +99,12 @@ jobs:
       - name: Run event watch test iterations
         run: |
           # Configuration
-          ITERATION_TIMEOUT_SECONDS=60
-          MAX_ITERATIONS=10
+          # TIMING TEST: Need longer timeout to account for:
+          #   - 17s delay for rank 0 to post event
+          #   - 20s for application (sleep 20)
+          #   - overhead for container scheduling, flux startup, etc.
+          ITERATION_TIMEOUT_SECONDS=80
+          MAX_ITERATIONS=1
           NODE_COUNT=${{ env.NODE_COUNT }}
 
           # Generate node list dynamically
@@ -211,6 +215,45 @@ jobs:
           echo ""
           echo "Test run completed at $(date)"
           echo "Results: ${success_count} successful, ${timeout_count} timeouts, bug_found=${found_bug}"
+
+          # TIMING TEST: Generate summary table showing which ranks succeeded/failed
+          echo ""
+          echo "=========================================="
+          echo "TIMING TEST RESULTS SUMMARY"
+          echo "=========================================="
+          echo "Hypothesis: Ranks that register watch BEFORE event is posted should succeed."
+          echo "           Ranks that register watch AFTER event is posted should fail."
+          echo ""
+          echo "Expected: Ranks 0-15 SUCCESS (watch at 0-7.5s, event posted at 17s)"
+          echo "Expected: Ranks 16-31 TIMEOUT (watch at 8-15.5s, event posted at 17s)"
+          echo ""
+
+          # Analyze iteration 1 stdout to find which ranks succeeded
+          if [ -f /tmp/artifacts/iterations/iter_1/stdout.log ]; then
+            echo "Actual Results:"
+            echo "---------------"
+
+            # Count successes
+            success_ranks=$(grep "\[TIMING TEST RESULT\].*SUCCESS" /tmp/artifacts/iterations/iter_1/stdout.log | awk '{print $4}' | sort -n | tr '\n' ' ' || echo "")
+            success_count_test=$(echo "$success_ranks" | wc -w)
+
+            echo "SUCCESS ranks ($success_count_test total): $success_ranks"
+            echo ""
+            echo "TIMEOUT ranks ($((NODE_COUNT - success_count_test)) total): (all ranks not listed above)"
+            echo ""
+
+            # Validate hypothesis
+            echo "Hypothesis validation:"
+            if [ "$success_count_test" -ge 10 ] && [ "$success_count_test" -le 20 ]; then
+              echo "  ✓ Result consistent with hypothesis - approximately half succeeded"
+            else
+              echo "  ✗ Result NOT consistent with hypothesis - expected ~16 successes, got $success_count_test"
+            fi
+          else
+            echo "Could not find stdout.log to analyze"
+          fi
+          echo "=========================================="
+          echo ""
 
           # If we completed normally (no bug/timeout), collect all logs now
           if [ "$found_bug" = "false" ] && [ $timeout_count -eq 0 ]; then
