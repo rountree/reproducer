@@ -37,8 +37,8 @@ fi
 
 echo ""
 echo "=== TEST 2: flux alloc (allocation + nested job) ==="
-echo "Running: flux alloc -o userrc=test.rc bash -c \"$TEST_CMD\""
-flux alloc -o userrc=test.rc bash -c "$TEST_CMD"
+echo "Running: flux alloc -N1 -o userrc=test.rc bash -c \"$TEST_CMD\""
+flux alloc -N1 -o userrc=test.rc bash -c "$TEST_CMD"
 
 echo ""
 echo "Checking eventlog for flux alloc job..."
