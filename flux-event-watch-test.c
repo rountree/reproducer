@@ -184,6 +184,28 @@ static int shell_init_callback(flux_plugin_t *p,
     return 0;
 }
 
+/* Cleanup handler called on shell.exit */
+static int shell_exit_callback(flux_plugin_t *p,
+                                const char *topic,
+                                flux_plugin_arg_t *args,
+                                void *data)
+{
+    (void)topic;
+    (void)args;
+    (void)data;
+
+    struct watch_context *ctx = flux_plugin_aux_get(p, "watch_ctx");
+    if (ctx && ctx->watch_future) {
+        flux_future_destroy(ctx->watch_future);
+        ctx->watch_future = NULL;
+    }
+    if (ctx && ctx->logfile && ctx->logfile != stderr) {
+        fclose(ctx->logfile);
+        ctx->logfile = NULL;
+    }
+    return 0;
+}
+
 /* Plugin initialization */
 int flux_plugin_init(flux_plugin_t *p)
 {
@@ -197,7 +219,14 @@ int flux_plugin_init(flux_plugin_t *p)
         return -1;
     }
 
-    fprintf(stderr, "[QQQ seq=%lu] %s:%d:%s - Handler registered\n",
+    /* Register callback for shell.exit phase to clean up */
+    if (flux_plugin_add_handler(p, "shell.exit", shell_exit_callback, NULL) < 0) {
+        fprintf(stderr, "[ERROR] flux_plugin_add_handler for shell.exit failed: %s\n",
+                flux_strerror(errno));
+        return -1;
+    }
+
+    fprintf(stderr, "[QQQ seq=%lu] %s:%d:%s - Handlers registered\n",
             seq++, __FILE__, __LINE__, __func__);
 
     return 0;
