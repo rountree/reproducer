@@ -450,6 +450,7 @@ static void wait_for_shell_init(flux_future_t *f, void *arg)
     }
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);
     if (strcmp(name, "shell.init") == 0) {
+        fprintf(stderr, "[RANK %d] Found shell.init event: %s\n", ctx->shell_rank, event);
         rc = json_unpack(o,
                 "{s:{s:i s:i}}",
                 "context",
@@ -466,6 +467,9 @@ static void wait_for_shell_init(flux_future_t *f, void *arg)
                         ctx->shell_rank, ctx->params.port, ctx->params.num_ports);
                 fflush(global_logfile);
             }
+        } else {
+            fprintf(stderr, "[RANK %d] json_unpack FAILED (rc=%d) - spindle_port/num_ports not in context\n",
+                    ctx->shell_rank, rc);
         }
     }
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);
