@@ -1,0 +1,1 @@
+plugin.load { file="/usr/lib/flux/shell/test-plugin.so" }
