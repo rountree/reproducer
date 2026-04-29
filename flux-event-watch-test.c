@@ -620,12 +620,17 @@ static int sp_init(flux_plugin_t *p,
     fprintf(stderr, "QQQ %s:%d:%s:%lu\n", __FILE__, __LINE__, __func__, seq++);
     if (shell_rank == 0) {
         /* Rank 0: add spindle port and num_ports to shell.init event */
-        flux_shell_add_event_context(shell, "shell.init", 0,
-                                     "{s:i s:i}",
-                                     "spindle_port",
-                                     ctx->params.port,
-                                     "spindle_num_ports",
-                                     ctx->params.num_ports);
+        int rc;
+        fprintf(stderr, "[SPINDLE rank=%d] Calling flux_shell_add_event_context with port=%d, num_ports=%d\n",
+                shell_rank, ctx->params.port, ctx->params.num_ports);
+        rc = flux_shell_add_event_context(shell, "shell.init", 0,
+                                          "{s:i s:i}",
+                                          "spindle_port",
+                                          ctx->params.port,
+                                          "spindle_num_ports",
+                                          ctx->params.num_ports);
+        fprintf(stderr, "[SPINDLE rank=%d] flux_shell_add_event_context returned %d\n",
+                shell_rank, rc);
     }
 
     /* All ranks watch guest.exec.eventlog for shell.init */
