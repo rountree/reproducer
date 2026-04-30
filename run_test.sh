@@ -19,8 +19,11 @@ echo "======================================"
 # The bug is in the event watch callback delivery, not in what the job does
 TEST_CMD="sleep 1"
 
-echo "Running: flux alloc --nodes=$NODES -o userrc=event-watch-test.rc -o spindle.level=high bash -c \"$TEST_CMD\""
-flux alloc --nodes=$NODES -o userrc=event-watch-test.rc -o spindle.level=high bash -c "$TEST_CMD"
+# IMPORTANT: Match real Spindle test structure
+# - flux alloc creates the allocation
+# - flux run (inside allocation) is where the plugin loads
+echo "Running: flux alloc --nodes=$NODES bash -c \"flux run -o userrc=event-watch-test.rc -o spindle.level=high $TEST_CMD\""
+flux alloc --nodes=$NODES bash -c "flux run -o userrc=event-watch-test.rc -o spindle.level=high $TEST_CMD"
 
 echo ""
 echo "Test completed"
