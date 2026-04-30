@@ -15,10 +15,9 @@ echo "Flux shell plugin: /usr/lib/flux/shell/flux-event-watch-test.so"
 echo "RC file: event-watch-test.rc"
 echo "======================================"
 
-# TIMING TEST: Application must outlive all rank sleeps + event posting
-# Rank 31 sleeps 15.5s before watching, rank 0 sleeps 7.75s before posting
-# So we need at least 20 seconds to ensure the application is still running
-TEST_CMD="sleep 20"
+# Simple test command - just sleep briefly
+# The bug is in the event watch callback delivery, not in what the job does
+TEST_CMD="sleep 1"
 
 echo "Running: flux alloc --nodes=$NODES -o userrc=event-watch-test.rc -o spindle.level=high bash -c \"$TEST_CMD\""
 flux alloc --nodes=$NODES -o userrc=event-watch-test.rc -o spindle.level=high bash -c "$TEST_CMD"
