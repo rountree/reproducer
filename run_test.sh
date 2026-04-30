@@ -16,7 +16,7 @@ echo "RC file: event-watch-test.rc"
 echo "======================================"
 
 # TIMING TEST: Application must outlive all rank sleeps + event posting
-# Rank 31 sleeps 15.5s before watching, rank 0 sleeps 17s before posting
+# Rank 31 sleeps 15.5s before watching, rank 0 sleeps 7.75s before posting
 # So we need at least 20 seconds to ensure the application is still running
 TEST_CMD="sleep 20"
 

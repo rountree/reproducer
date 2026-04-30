@@ -100,10 +100,11 @@ jobs:
         run: |
           # Configuration
           # TIMING TEST: Need longer timeout to account for:
-          #   - 17s delay for rank 0 to post event
+          #   - 7.75s delay for rank 0 to post event
+          #   - 15.5s max delay for rank 31 to start watching
           #   - 20s for application (sleep 20)
           #   - overhead for container scheduling, flux startup, etc.
-          ITERATION_TIMEOUT_SECONDS=80
+          ITERATION_TIMEOUT_SECONDS=60
           MAX_ITERATIONS=1
           NODE_COUNT=${{ env.NODE_COUNT }}
 
@@ -224,8 +225,8 @@ jobs:
           echo "Hypothesis: Ranks that register watch BEFORE event is posted should succeed."
           echo "           Ranks that register watch AFTER event is posted should fail."
           echo ""
-          echo "Expected: Ranks 0-15 SUCCESS (watch at 0-7.5s, event posted at 17s)"
-          echo "Expected: Ranks 16-31 TIMEOUT (watch at 8-15.5s, event posted at 17s)"
+          echo "Expected: Ranks 0-15 SUCCESS (watch at 0-7.5s, event posted at 7.75s)"
+          echo "Expected: Ranks 16-31 TIMEOUT (watch at 8-15.5s, event posted at 7.75s)"
           echo ""
 
           # Analyze iteration 1 stdout to find which ranks succeeded

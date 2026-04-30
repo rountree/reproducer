@@ -637,13 +637,15 @@ static int sp_init(flux_plugin_t *p,
 
     /* TIMING TEST: Deliberately delay rank 0's event posting and other ranks' watching
      * to test hypothesis that flux_job_event_watch doesn't replay past events.
-     * - Rank 0: sleep 17s before posting event
+     * - Rank 0: sleep 7.75s before posting event (max_rank * 0.5 / 2 = 31 * 0.5 / 2)
      * - Rank i: sleep (i * 0.5)s before watching
-     * Expected: ranks 0-15 succeed (watch before event), ranks 16-31 fail (watch after event)
+     * Expected: ranks 0-15 succeed (watch before event at 7.75s), ranks 16-31 fail (watch after event)
      */
     if (shell_rank == 0) {
-        fprintf(stderr, "[TIMING TEST rank=%d] Sleeping 17 seconds before posting event...\n", shell_rank);
-        sleep(17);
+        double rank0_sleep = 7.75;
+        fprintf(stderr, "[TIMING TEST rank=%d] Sleeping %.2f seconds before posting event...\n",
+                shell_rank, rank0_sleep);
+        usleep((unsigned int)(rank0_sleep * 1000000));
         fprintf(stderr, "[TIMING TEST rank=%d] Awake! Now posting event.\n", shell_rank);
 
         /* Rank 0: add spindle port and num_ports to shell.init event */
